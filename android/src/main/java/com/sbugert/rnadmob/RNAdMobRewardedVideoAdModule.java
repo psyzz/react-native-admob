@@ -2,7 +2,9 @@ package com.sbugert.rnadmob;
 
 import android.os.Handler;
 import android.os.Looper;
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;
+
+import android.os.Bundle;
 
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.Callback;
@@ -18,6 +20,9 @@ import com.google.android.gms.ads.MobileAds;
 import com.google.android.gms.ads.reward.RewardedVideoAd;
 import com.google.android.gms.ads.reward.RewardedVideoAdListener;
 import com.google.android.gms.ads.reward.RewardItem;
+
+import com.google.ads.consent.*;
+import com.google.ads.mediation.admob.AdMobAdapter;
 import com.google.android.gms.ads.AdRequest;
 
 import java.util.ArrayList;
@@ -142,8 +147,68 @@ public class RNAdMobRewardedVideoAdModule extends ReactContextBaseJavaModule imp
       this.testDevices = list.toArray(new String[list.size()]);
     }
 
+    // @ReactMethod
+    // public void setNonPersonalizedAds (final Promise promise) {
+    //     // 
+    //     Bundle extras = new Bundle();
+    //     extras.putString("npa", "1");
+
+    //     AdRequest request = new AdRequest.Builder()
+    //             .addNetworkExtrasBundle(AdMobAdapter.class, extras)
+    //             .build();
+    // }
+
+    // @ReactMethod
+    // public void setPersonalizedAds (final Promise promise) {
+    //     // 
+    //     Bundle extras = new Bundle();
+    //     extras.putString("npa", "0");
+
+    //     AdRequest request = new AdRequest.Builder()
+    //             .addNetworkExtrasBundle(AdMobAdapter.class, extras)
+    //             .build();
+    // }
+
     @ReactMethod
-    public void requestAd(final Promise promise) {
+    public void requestAdNonPersonalized(final Promise promise) {
+        new Handler(Looper.getMainLooper()).post(new Runnable() {
+            @Override
+            public void run() {
+                RNAdMobRewardedVideoAdModule.this.mRewardedVideoAd = MobileAds.getRewardedVideoAdInstance(getCurrentActivity());
+
+                RNAdMobRewardedVideoAdModule.this.mRewardedVideoAd.setRewardedVideoAdListener(RNAdMobRewardedVideoAdModule.this);
+
+                if (mRewardedVideoAd.isLoaded()) {
+                    promise.reject("E_AD_ALREADY_LOADED", "Ad is already loaded.");
+                } else {
+                    mRequestAdPromise = promise;
+
+                    AdRequest.Builder adRequestBuilder = new AdRequest.Builder();
+
+                    if (testDevices != null) {
+                        for (int i = 0; i < testDevices.length; i++) {
+                            String testDevice = testDevices[i];
+                            if (testDevice == "SIMULATOR") {
+                                testDevice = AdRequest.DEVICE_ID_EMULATOR;
+                            }
+                            adRequestBuilder.addTestDevice(testDevice);
+                        }
+                    }
+                    
+                    // NON PERSONALIZED ADS : npa true
+                    Bundle extras = new Bundle();
+                    extras.putString("npa", "1");
+                    adRequestBuilder.addNetworkExtrasBundle(AdMobAdapter.class, extras);
+                    
+                    AdRequest adRequest = adRequestBuilder.build();
+                    mRewardedVideoAd.loadAd(adUnitID, adRequest);
+                }
+            }
+        });
+    }
+
+    @ReactMethod
+    public void requestAdPersonalized(final Promise promise) {
         new Handler(Looper.getMainLooper()).post(new Runnable() {
             @Override
             public void run() {
@@ -168,6 +233,11 @@ public class RNAdMobRewardedVideoAdModule extends ReactContextBaseJavaModule imp
                         }
                     }
 
+                    // PERSONALIZED ADS : npa false
+                    Bundle extras = new Bundle();
+                    extras.putString("npa", "0");
+                    adRequestBuilder.addNetworkExtrasBundle(AdMobAdapter.class, extras);
+                    
                     AdRequest adRequest = adRequestBuilder.build();
                     mRewardedVideoAd.loadAd(adUnitID, adRequest);
                 }
